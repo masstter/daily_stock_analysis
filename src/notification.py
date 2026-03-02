@@ -496,6 +496,19 @@ class NotificationService(
                     "",
                 ])
 
+                # 添加维度评分显示
+                if hasattr(result, 'dimension_scores') and result.dimension_scores:
+                    dim_scores = result.dimension_scores
+                    report_lines.extend([
+                        "#### 📊 多维度评分",
+                        "",
+                        f"- **技术面**：{dim_scores.technical_score}分 {dim_scores.get_rating(dim_scores.technical_score)}",
+                        f"- **基本面**：{dim_scores.fundamental_score}分 {dim_scores.get_rating(dim_scores.fundamental_score)}",
+                        f"- **消息面**：{dim_scores.sentiment_score}分 {dim_scores.get_rating(dim_scores.sentiment_score)}",
+                        f"- **综合评分**：{dim_scores.overall_score}分 {dim_scores.get_rating(dim_scores.overall_score)}",
+                        "",
+                    ])
+
                 self._append_market_snapshot(report_lines, result)
                 
                 # 核心看点
@@ -720,7 +733,7 @@ class NotificationService(
         report_lines = [
             f"# 🎯 {report_date} 决策仪表盘",
             "",
-            f"> 共分析 **{len(results)}** 只股票 | 🟢买入:{buy_count} 🟡观望:{hold_count} 🔴卖出:{sell_count}",
+            f"> 共分析 **{len(results)}** 只股票 | 🟢买入:{buy_count}  🟡观望:{hold_count}  🔴卖出:{sell_count}",
             "",
         ]
 
@@ -758,6 +771,21 @@ class NotificationService(
                     "",
                 ])
                 
+                # 添加维度评分显示
+                if hasattr(result, 'dimension_scores') and result.dimension_scores:
+                    dim_scores = result.dimension_scores
+                    report_lines.extend([
+                        "### 📊 多维度评分",
+                        "",
+                        f"| 维度 | 评分 | 评级 |",
+                        "|------|------|------|",
+                        f"| 📈 技术面 | {dim_scores.technical_score} | {dim_scores.get_rating(dim_scores.technical_score)} |",
+                        f"| 🏢 基本面 | {dim_scores.fundamental_score} | {dim_scores.get_rating(dim_scores.fundamental_score)} |",
+                        f"| 📰 消息面 | {dim_scores.sentiment_score} | {dim_scores.get_rating(dim_scores.sentiment_score)} |",
+                        f"| 🎯 综合评分 | {dim_scores.overall_score} | {dim_scores.get_rating(dim_scores.overall_score)} |",
+                        "",
+                    ])
+
                 # ========== 舆情与基本面概览（放在最前面）==========
                 intel = dashboard.get('intelligence', {}) if dashboard else {}
                 if intel:
@@ -982,7 +1010,7 @@ class NotificationService(
         lines = [
             f"## 🎯 {report_date} 决策仪表盘",
             "",
-            f"> {len(results)}只股票 | 🟢买入:{buy_count} 🟡观望:{hold_count} 🔴卖出:{sell_count}",
+            f"> {len(results)}只股票 | 🟢买入:{buy_count}  🟡观望:{hold_count}  🔴卖出:{sell_count}",
             "",
         ]
         
@@ -1016,19 +1044,31 @@ class NotificationService(
                 # 核心决策（一句话）
                 one_sentence = core.get('one_sentence', result.analysis_summary) if core else result.analysis_summary
                 if one_sentence:
-                    lines.append(f"📌 **{one_sentence[:80]}**")
+                    lines.append(f"📌 **{one_sentence[:100]}**")
                     lines.append("")
-                
+
+                # 添加维度评分
+                if hasattr(result, 'dimension_scores') and result.dimension_scores:
+                    dim_scores = result.dimension_scores
+                    scores_text = (
+                        f"🏢 **评分:** 技术{dim_scores.technical_score} | "
+                        f"基本{dim_scores.fundamental_score} | "
+                        f"消息{dim_scores.sentiment_score} | "
+                        f"综合{dim_scores.overall_score}"
+                    )
+                    lines.append(scores_text)
+                    lines.append("")
+
                 # 重要信息区（舆情+基本面）
                 info_lines = []
                 
                 # 业绩预期
                 if intel.get('earnings_outlook'):
-                    outlook = intel['earnings_outlook'][:60]
-                    info_lines.append(f"📊 业绩: {outlook}")
+                    outlook = intel['earnings_outlook'][:100]
+                    info_lines.append(f"📊 **业绩**: {outlook}")
                 if intel.get('sentiment_summary'):
-                    sentiment = intel['sentiment_summary'][:50]
-                    info_lines.append(f"💭 舆情: {sentiment}")
+                    sentiment = intel['sentiment_summary'][:100]
+                    info_lines.append(f"💭 **舆情**: {sentiment}")
                 if info_lines:
                     lines.extend(info_lines)
                     lines.append("")
@@ -1037,8 +1077,8 @@ class NotificationService(
                 risks = intel.get('risk_alerts', []) if intel else []
                 if risks:
                     lines.append("🚨 **风险**:")
-                    for risk in risks[:2]:  # 最多显示2条
-                        risk_text = risk[:50] + "..." if len(risk) > 50 else risk
+                    for risk in risks[:5]:  # 最多显示2条
+                        risk_text = risk[:100] + "..." if len(risk) > 50 else risk
                         lines.append(f"   • {risk_text}")
                     lines.append("")
                 
@@ -1046,10 +1086,10 @@ class NotificationService(
                 catalysts = intel.get('positive_catalysts', []) if intel else []
                 if catalysts:
                     lines.append("✨ **利好**:")
-                    for cat in catalysts[:2]:  # 最多显示2条
-                        cat_text = cat[:50] + "..." if len(cat) > 50 else cat
+                    for cat in catalysts[:5]:  # 最多显示2条
+                        cat_text = cat[:100] + "..." if len(cat) > 50 else cat
                         lines.append(f"   • {cat_text}")
-                    lines.append("")
+                    # lines.append("")
                 
                 # 狙击点位
                 sniper = battle.get('sniper_points', {}) if battle else {}
@@ -1059,11 +1099,11 @@ class NotificationService(
                     take_profit = sniper.get('take_profit', '')
                     points = []
                     if ideal_buy:
-                        points.append(f"🎯买点:{ideal_buy[:15]}")
+                        points.append(f"🎯**狙击点位:** 买点:{ideal_buy[:100]}")
                     if stop_loss:
-                        points.append(f"🛑止损:{stop_loss[:15]}")
+                        points.append(f" 止损:{stop_loss[:100]}")
                     if take_profit:
-                        points.append(f"🎊目标:{take_profit[:15]}")
+                        points.append(f" 目标:{take_profit[:100]}")
                     if points:
                         lines.append(" | ".join(points))
                         lines.append("")
@@ -1074,9 +1114,9 @@ class NotificationService(
                     no_pos = pos_advice.get('no_position', '')
                     has_pos = pos_advice.get('has_position', '')
                     if no_pos:
-                        lines.append(f"🆕 空仓者: {no_pos[:50]}")
+                        lines.append(f"🎊 **空仓建议**: {no_pos[:100]}")
                     if has_pos:
-                        lines.append(f"💼 持仓者: {has_pos[:50]}")
+                        lines.append(f"💼 **持仓建议**: {has_pos[:100]}")
                     lines.append("")
                 
                 # 检查清单简化版
@@ -1085,16 +1125,15 @@ class NotificationService(
                     # 只显示不通过的项目
                     failed_checks = [c for c in checklist if c.startswith('❌') or c.startswith('⚠️')]
                     if failed_checks:
-                        lines.append("**检查未通过项**:")
-                        for check in failed_checks[:3]:
-                            lines.append(f"   {check[:40]}")
+                        lines.append("**💔危险信号清单**:")
+                        for check in failed_checks[:5]:
+                            lines.append(f"   {check[:100]}")
                         lines.append("")
                 
-                lines.append("---")
                 lines.append("")
         
         # 底部
-        lines.append(f"*生成时间: {datetime.now().strftime('%H:%M')}*")
+        lines.append(f"*报告时间: {datetime.now().strftime('%H:%M')}*")
         
         content = "\n".join(lines)
         
@@ -1138,17 +1177,17 @@ class NotificationService(
             
             # 操作理由（截断）
             if hasattr(result, 'buy_reason') and result.buy_reason:
-                reason = result.buy_reason[:80] + "..." if len(result.buy_reason) > 80 else result.buy_reason
+                reason = result.buy_reason[:100] + "..." if len(result.buy_reason) > 80 else result.buy_reason
                 lines.append(f"💡 {reason}")
             
             # 核心看点
             if hasattr(result, 'key_points') and result.key_points:
-                points = result.key_points[:60] + "..." if len(result.key_points) > 60 else result.key_points
+                points = result.key_points[:100] + "..." if len(result.key_points) > 60 else result.key_points
                 lines.append(f"🎯 {points}")
             
             # 风险提示（截断）
             if hasattr(result, 'risk_warning') and result.risk_warning:
-                risk = result.risk_warning[:50] + "..." if len(result.risk_warning) > 50 else result.risk_warning
+                risk = result.risk_warning[:100] + "..." if len(result.risk_warning) > 50 else result.risk_warning
                 lines.append(f"⚠️ {risk}")
             
             lines.append("")
@@ -1194,6 +1233,34 @@ class NotificationService(
             "",
         ]
 
+        # 添加维度评分显示
+        if hasattr(result, 'dimension_scores') and result.dimension_scores:
+            dim_scores = result.dimension_scores
+            lines.extend([
+                "### 📊 多维度评分",
+                "",
+                f"| 维度 | 评分 | 评级 |",
+                "|------|------|------|",
+            ])
+
+            # 技术面评分
+            tech_rating = dim_scores.get_rating(dim_scores.technical_score) if hasattr(dim_scores, 'get_rating') else "⭐⭐⭐"
+            lines.append(f"| 📈 技术面 | {dim_scores.technical_score} | {tech_rating} |")
+
+            # 基本面评分
+            fund_rating = dim_scores.get_rating(dim_scores.fundamental_score) if hasattr(dim_scores, 'get_rating') else "⭐⭐⭐"
+            lines.append(f"| 🏢 基本面 | {dim_scores.fundamental_score} | {fund_rating} |")
+
+            # 消息面评分
+            sentiment_rating = dim_scores.get_rating(dim_scores.sentiment_score) if hasattr(dim_scores, 'get_rating') else "⭐⭐⭐"
+            lines.append(f"| 📰 消息面 | {dim_scores.sentiment_score} | {sentiment_rating} |")
+
+            # 综合评分
+            overall_rating = dim_scores.get_rating(dim_scores.overall_score) if hasattr(dim_scores, 'get_rating') else "⭐⭐⭐"
+            lines.append(f"| 🎯 综合评分 | {dim_scores.overall_score} | {overall_rating} |")
+
+            lines.append("")
+
         self._append_market_snapshot(lines, result)
         
         # 核心决策（一句话）
@@ -1221,7 +1288,7 @@ class NotificationService(
                     lines.append("### 📰 重要信息")
                     lines.append("")
                     info_added = True
-                lines.append(f"💭 **舆情情绪**: {intel['sentiment_summary'][:80]}")
+                lines.append(f"💭 **舆情情绪**: {intel['sentiment_summary'][:100]}")
             
             # 风险警报
             risks = intel.get('risk_alerts', [])
@@ -1232,16 +1299,16 @@ class NotificationService(
                     info_added = True
                 lines.append("")
                 lines.append("🚨 **风险警报**:")
-                for risk in risks[:3]:
-                    lines.append(f"- {risk[:60]}")
+                for risk in risks[:5]:
+                    lines.append(f"- {risk[:100]}")
             
             # 利好催化
             catalysts = intel.get('positive_catalysts', [])
             if catalysts:
                 lines.append("")
                 lines.append("✨ **利好催化**:")
-                for cat in catalysts[:3]:
-                    lines.append(f"- {cat[:60]}")
+                for cat in catalysts[:5]:
+                    lines.append(f"- {cat[:100]}")
         
         if info_added:
             lines.append("")

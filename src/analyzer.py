@@ -145,6 +145,62 @@ def get_stock_name_multi_source(
 
 
 @dataclass
+class DimensionScores:
+    """
+    多维度评分数据类
+
+    为股票的各个分析维度提供0-100分的评分，帮助投资者更全面地理解分析结果
+    """
+    # 技术面评分（0-100分）
+    technical_score: int = 0  # 技术面综合评分
+    ma_score: int = 0  # 均线评分
+    volume_score: int = 0  # 量能评分
+    pattern_score: int = 0  # 形态评分
+
+    # 基本面评分（0-100分）
+    fundamental_score: int = 0  # 基本面综合评分
+    valuation_score: int = 0  # 估值评分
+    growth_score: int = 0  # 成长性评分
+
+    # 消息面/情绪面评分（0-100分）
+    sentiment_score: int = 0  # 情绪面评分
+    news_score: int = 0  # 新闻面评分
+    catalyst_score: int = 0  # 催化剂评分
+
+    # 综合评分（0-100分）
+    overall_score: int = 0  # 综合评分（加权平均）
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            'technical_score': self.technical_score,
+            'ma_score': self.ma_score,
+            'volume_score': self.volume_score,
+            'pattern_score': self.pattern_score,
+            'fundamental_score': self.fundamental_score,
+            'valuation_score': self.valuation_score,
+            'growth_score': self.growth_score,
+            'sentiment_score': self.sentiment_score,
+            'news_score': self.news_score,
+            'catalyst_score': self.catalyst_score,
+            'overall_score': self.overall_score,
+        }
+
+    def get_rating(self, score: int) -> str:
+        """根据评分获取评级"""
+        if score >= 80:
+            return "⭐⭐⭐⭐⭐"  # 优秀
+        elif score >= 70:
+            return "⭐⭐⭐⭐"  # 良好
+        elif score >= 60:
+            return "⭐⭐⭐"  # 中等
+        elif score >= 50:
+            return "⭐⭐"  # 一般
+        else:
+            return "⭐"  # 较差
+
+
+@dataclass
 class AnalysisResult:
     """
     AI 分析结果数据类 - 决策仪表盘版
@@ -203,6 +259,9 @@ class AnalysisResult:
     current_price: Optional[float] = None  # 分析时的股价
     change_pct: Optional[float] = None     # 分析时的涨跌幅(%)
 
+    # ========== 多维度评分 ==========
+    dimension_scores: Optional[DimensionScores] = None  # 多维度评分数据
+
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
@@ -237,6 +296,7 @@ class AnalysisResult:
             'error_message': self.error_message,
             'current_price': self.current_price,
             'change_pct': self.change_pct,
+            'dimension_scores': self.dimension_scores.to_dict() if self.dimension_scores else None,
         }
 
     def get_core_conclusion(self) -> str:
@@ -567,6 +627,7 @@ class GeminiAnalyzer:
             return
 
         self._litellm_available = True
+
 
         if len(keys) > 1:
             extra_params = self._extra_litellm_params(litellm_model, config)
@@ -1108,7 +1169,8 @@ class GeminiAnalyzer:
                     else:
                         decision_type = 'hold'
                 
-                return AnalysisResult(
+                # 构建分析结果
+                result = AnalysisResult(
                     code=code,
                     name=name,
                     # 核心指标
@@ -1146,6 +1208,11 @@ class GeminiAnalyzer:
                     data_sources=data.get('data_sources', '技术面数据'),
                     success=True,
                 )
+
+                # 计算多维度评分
+                result.dimension_scores = self._calculate_dimension_scores(data)
+
+                return result
             else:
                 # 没有找到 JSON，尝试从纯文本中提取信息
                 logger.warning(f"无法从响应中提取 JSON，使用原始文本分析")
@@ -1255,6 +1322,36 @@ class GeminiAnalyzer:
             results.append(result)
         
         return results
+
+    def _calculate_dimension_scores(self, analysis_data: Dict[str, Any]) -> 'DimensionScores':
+        """
+        计算多维度评分
+
+        Args:
+            analysis_data: 分析结果数据（AI返回的JSON）
+
+        Returns:
+            DimensionScores 对象
+        """
+        from src.dimension_scorer import DimensionScorer
+
+        scorer = DimensionScorer()
+        scores = scorer.calculate_scores(analysis_data)
+
+        # 构建DimensionScores对象
+        return DimensionScores(
+            technical_score=scores.get('technical_score', 50),
+            ma_score=scores.get('ma_score', 50),
+            volume_score=scores.get('volume_score', 50),
+            pattern_score=scores.get('pattern_score', 50),
+            fundamental_score=scores.get('fundamental_score', 50),
+            valuation_score=scores.get('valuation_score', 50),
+            growth_score=scores.get('growth_score', 50),
+            sentiment_score=scores.get('sentiment_score', 50),
+            news_score=scores.get('news_score', 50),
+            catalyst_score=scores.get('catalyst_score', 50),
+            overall_score=scores.get('overall_score', 50),
+        )
 
 
 # 便捷函数

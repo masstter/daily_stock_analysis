@@ -360,6 +360,27 @@ def run_full_analysis(
                     else:
                         logger.warning("合并推送失败")
 
+        # === 新增：合并推送后发送报告文件到企业微信 ===
+        if config.wechat_webhook_file_url and len(config.wechat_webhook_file_url) > 0:
+            try:
+                from src.report_file_manager import ReportFileManager
+                from src.notification_sender.wechat_sender import WechatSender
+
+                report_manager = ReportFileManager()
+                report_files = report_manager.find_report_files()
+
+                if report_files:
+                    wechat_sender = WechatSender(config)
+                    for file_path in report_files:
+                        if wechat_sender.send_file_to_wechat(str(file_path)):
+                            logger.info(f"已发送报告文件到企业微信: {file_path.name}")
+                        else:
+                            logger.warning(f"企业微信报告文件发送失败: {file_path.name}")
+                else:
+                    logger.info("未找到报告文件，跳过企业微信文件发送")
+            except Exception as e:
+                logger.warning(f"企业微信文件发送异常（已忽略）: {e}")
+
         # 输出摘要
         if results:
             logger.info("\n===== 分析结果摘要 =====")
@@ -511,7 +532,11 @@ def main() -> int:
     config = get_config()
 
     # 配置日志（输出到控制台和文件）
-    setup_logging(log_prefix="stock_analysis", debug=args.debug, log_dir=config.log_dir)
+    setup_logging(
+        log_prefix="stock_analysis",
+        debug=args.debug,
+        log_dir=config.log_dir
+    )
 
     logger.info("=" * 60)
     logger.info("A股自选股智能分析系统 启动")

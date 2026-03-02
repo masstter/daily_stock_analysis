@@ -37,10 +37,11 @@ def main() -> int:
 
     try:
         import uvicorn
-        from src.config import setup_env
+        from src.config import setup_env, get_config
         from src.logging_config import setup_logging
 
         setup_env()
+        config = get_config()
         setup_logging(log_prefix="web_server")
 
         uvicorn.run(

@@ -146,6 +146,7 @@ class LLMToolAdapter:
 
         self._litellm_available = True
 
+
         if len(keys) > 1:
             extra_params = self._extra_litellm_params(litellm_model)
             model_list = [

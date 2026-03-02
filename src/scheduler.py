@@ -68,7 +68,8 @@ class Scheduler:
         初始化调度器
         
         Args:
-            schedule_time: 每日执行时间，格式 "HH:MM"
+            schedule_time: 每日执行时间，格式 "HH:MM" 或 "HH:MM,HH:MM,..." (支持多个时间点)
+                          例如: "18:00" 或 "09:30,14:00,18:00"
         """
         try:
             import schedule
@@ -77,11 +78,29 @@ class Scheduler:
             logger.error("schedule 库未安装，请执行: pip install schedule")
             raise ImportError("请安装 schedule 库: pip install schedule")
         
-        self.schedule_time = schedule_time
+        # 支持逗号分隔的多个时间点
+        self.schedule_times = [t.strip() for t in schedule_time.split(',')]
         self.shutdown_handler = GracefulShutdown()
         self._task_callback: Optional[Callable] = None
         self._running = False
-        
+        self._validate_times()
+
+    def _validate_times(self):
+        """验证时间格式是否正确"""
+        for time_str in self.schedule_times:
+            try:
+                # 验证时间格式 HH:MM
+                parts = time_str.split(':')
+                if len(parts) != 2:
+                    raise ValueError(f"时间格式错误: {time_str}")
+                hour, minute = int(parts[0]), int(parts[1])
+                if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                    raise ValueError(f"时间值超出范围: {time_str}")
+            except (ValueError, AttributeError) as e:
+                logger.error(f"时间格式验证失败: {e}")
+                raise ValueError(f"无效的时间格式 '{time_str}'，应为 'HH:MM' 格式")
+        logger.info(f"已加载 {len(self.schedule_times)} 个执行时间点: {', '.join(self.schedule_times)}")
+
     def set_daily_task(self, task: Callable, run_immediately: bool = True):
         """
         设置每日定时任务
@@ -92,10 +111,12 @@ class Scheduler:
         """
         self._task_callback = task
         
-        # 设置每日定时任务
-        self.schedule.every().day.at(self.schedule_time).do(self._safe_run_task)
-        logger.info(f"已设置每日定时任务，执行时间: {self.schedule_time}")
-        
+        # 为每个时间点设置定时任务
+        for schedule_time in self.schedule_times:
+            self.schedule.every().day.at(schedule_time).do(self._safe_run_task)
+
+        logger.info(f"已设置每日定时任务，执行时间: {', '.join(self.schedule_times)}")
+
         if run_immediately:
             logger.info("立即执行一次任务...")
             self._safe_run_task()

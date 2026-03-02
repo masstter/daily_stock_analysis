@@ -365,10 +365,9 @@ class MarketAnalyzer:
         if not has_stats:
             return ""
         lines = [
-            f"> 📈 上涨 **{overview.up_count}** 家 / 下跌 **{overview.down_count}** 家 / "
-            f"平盘 **{overview.flat_count}** 家 | "
-            f"涨停 **{overview.limit_up_count}** / 跌停 **{overview.limit_down_count}** | "
-            f"成交额 **{overview.total_amount:.0f}** 亿"
+            f"> 📈 **涨** {overview.up_count} 家 | 📉 **跌** {overview.down_count} 家 | ➡️ **平** {overview.flat_count} 家 | "
+            f"🔺 **涨停** {overview.limit_up_count} | 🔻 **跌停** {overview.limit_down_count} | "
+            f"💰 **成交额** {overview.total_amount:.0f}亿"
         ]
         return "\n".join(lines)
 
@@ -377,10 +376,9 @@ class MarketAnalyzer:
         if not overview.indices:
             return ""
         lines = [
-            "| 指数 | 最新 | 涨跌幅 | 成交额(亿) |",
-            "|------|------|--------|-----------|"]
+            "| 📊 指数 | 📍 最新 | 📈 涨跌幅 | 💵 成交额(亿) |",
+            "|---------|--------|----------|---------------|"]
         for idx in overview.indices:
-            arrow = "🔴" if idx.change_pct < 0 else "🟢" if idx.change_pct > 0 else "⚪"
             amount_raw = idx.amount or 0.0
             if amount_raw == 0.0:
                 # Yahoo Finance 不提供成交额，显示 N/A 避免误解
@@ -389,7 +387,7 @@ class MarketAnalyzer:
                 amount_str = f"{amount_raw / 1e8:.0f}"
             else:
                 amount_str = f"{amount_raw:.0f}"
-            lines.append(f"| {idx.name} | {idx.current:.2f} | {arrow} {idx.change_pct:+.2f}% | {amount_str} |")
+            lines.append(f"| {idx.name} | {idx.current:.2f} | {idx.change_pct:+.2f}% | {amount_str} |")
         return "\n".join(lines)
 
     def _build_sector_block(self, overview: MarketOverview) -> str:
@@ -398,15 +396,19 @@ class MarketAnalyzer:
             return ""
         lines = []
         if overview.top_sectors:
-            top = " | ".join(
-                [f"**{s['name']}**({s['change_pct']:+.2f}%)" for s in overview.top_sectors[:5]]
-            )
-            lines.append(f"> 🔥 领涨: {top}")
+            top_items = []
+            for i, s in enumerate(overview.top_sectors[:5], 1):
+                emoji = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"][i-1]
+                top_items.append(f"{emoji} **{s['name']}** {s['change_pct']:+.2f}%")
+            top = " | ".join(top_items)
+            lines.append(f"> 🚀 **领涨板块**: {top}")
         if overview.bottom_sectors:
-            bot = " | ".join(
-                [f"**{s['name']}**({s['change_pct']:+.2f}%)" for s in overview.bottom_sectors[:5]]
-            )
-            lines.append(f"> 💧 领跌: {bot}")
+            bot_items = []
+            for i, s in enumerate(overview.bottom_sectors[:5], 1):
+                emoji = ["🔻", "📉", "⬇️", "❌", "💔"][i-1]
+                bot_items.append(f"{emoji} **{s['name']}** {s['change_pct']:+.2f}%")
+            bot = " | ".join(bot_items)
+            lines.append(f"> 📍 **领跌板块**: {bot}")
         return "\n".join(lines)
 
     def _build_review_prompt(self, overview: MarketOverview, news: List) -> str:
@@ -589,16 +591,16 @@ Output the report content directly, no extra commentary.
 （解读成交额流向的含义）
 
 ### 四、热点解读
-（分析领涨领跌板块背后的逻辑和驱动因素）
+（分析领涨、领跌板块背后的逻辑和驱动因素）
 
 ### 五、后市展望
-（结合当前走势和新闻，给出明日市场预判）
+（结合当前走势和新闻，给出明日市场预判，核心观察点）
 
 ### 六、风险提示
 （需要关注的风险点）
 
 ### 七、策略计划
-（给出进攻/均衡/防守结论，对应仓位建议，并给出一个触发失效条件；最后补充“建议仅供参考，不构成投资建议”。）
+（给出进攻/均衡/防守结论，对应仓位建议，并给出一个触发失效条件）
 
 ---
 
