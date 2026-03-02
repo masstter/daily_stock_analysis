@@ -46,6 +46,7 @@ DEFAULT_QUIET_LOGGERS = [
     'sqlalchemy',
     'google',
     'httpx',
+    'litellm',  # 默认降低 litellm 的日志级别
 ]
 
 
@@ -133,6 +134,7 @@ def setup_logging(
 
     for logger_name in quiet_loggers:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
+
 
     # 输出初始化完成信息（使用相对路径）
     try:

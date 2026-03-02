@@ -357,7 +357,8 @@ class Config:
     
     # 企业微信 Webhook
     wechat_webhook_url: Optional[str] = None
-    
+    wechat_webhook_file_url: Optional[str] = None  # 企业微信文件上传 URL
+
     # 飞书 Webhook
     feishu_webhook_url: Optional[str] = None
     
@@ -454,7 +455,15 @@ class Config:
     # === 日志配置 ===
     log_dir: str = "./logs"  # 日志文件目录
     log_level: str = "INFO"  # 日志级别
-    
+    quiet_loggers: List[str] = field(default_factory=lambda: [
+        'urllib3',
+        'sqlalchemy',
+        'google',
+        'httpx',
+    ])  # 需要降低日志级别的第三方库列表
+
+    log_level: str = "INFO"  # 日志级别
+
     # === 系统配置 ===
     max_workers: int = 3  # 低并发防封禁
     debug: bool = False
@@ -910,6 +919,7 @@ class Config:
             agent_event_monitor_interval_minutes=max(1, int(os.getenv('AGENT_EVENT_MONITOR_INTERVAL_MINUTES', '5'))),
             agent_event_alert_rules_json=os.getenv('AGENT_EVENT_ALERT_RULES_JSON', ''),
             wechat_webhook_url=os.getenv('WECHAT_WEBHOOK_URL'),
+            wechat_webhook_file_url=os.getenv('WECHAT_WEBHOOK_FILE_URL'),
             feishu_webhook_url=os.getenv('FEISHU_WEBHOOK_URL'),
             telegram_bot_token=os.getenv('TELEGRAM_BOT_TOKEN'),
             telegram_chat_id=os.getenv('TELEGRAM_CHAT_ID'),
