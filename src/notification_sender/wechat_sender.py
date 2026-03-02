@@ -7,6 +7,7 @@ Wechat 发送提醒服务
 2. 通过企业微信 Webhook 发送图片消息
 """
 import logging
+import os
 import base64
 import hashlib
 import requests
@@ -32,6 +33,7 @@ class WechatSender:
             config: 配置对象
         """
         self._wechat_url = config.wechat_webhook_url
+        self._wechat_file_url = config.wechat_webhook_file_url
         self._wechat_max_bytes = getattr(config, 'wechat_max_bytes', 4000)
         self._wechat_msg_type = getattr(config, 'wechat_msg_type', 'markdown')
         self._webhook_verify_ssl = getattr(config, 'webhook_verify_ssl', True)
@@ -188,3 +190,130 @@ class WechatSender:
                     "content": content
                 }
             }
+
+    def send_file_to_wechat(self, file_path: str) -> bool:
+        """
+        上传文件到企业微信并发送文件消息
+
+        步骤：
+        1. 调用 upload_media API 上传文件，获取 media_id
+        2. 调用 webhook 发送文件消息（file 类型）
+
+        企业微信文件消息格式：
+        {
+            "msgtype": "file",
+            "file": {
+                "media_id": "MEDIA_ID"
+            }
+        }
+
+        Args:
+            file_path: 文件路径
+
+        Returns:
+            是否发送成功
+        """
+        if not self._wechat_url or not self._wechat_file_url:
+            logger.warning("企业微信 Webhook 或文件上传 URL 未配置，跳过文件发送")
+            return False
+
+        if not os.path.exists(file_path):
+            logger.error(f"文件不存在: {file_path}")
+            return False
+
+        try:
+            # 1. 上传文件获取 media_id
+            media_id = self._upload_media(file_path)
+            if not media_id:
+                logger.error(f"文件上传失败: {file_path}")
+                return False
+
+            # 2. 发送文件消息
+            return self._send_file_message(media_id, os.path.basename(file_path))
+
+        except Exception as e:
+            logger.error(f"企业微信文件发送异常: {e}")
+            return False
+
+    def _upload_media(self, file_path: str) -> str:
+        """
+        上传文件到企业微信 media 库
+
+        Returns:
+            media_id 或空字符串（失败）
+        """
+        if not self._wechat_file_url:
+            return ""
+
+        try:
+            with open(file_path, 'rb') as f:
+                files = {'media': f}
+                response = requests.post(
+                    self._wechat_file_url,
+                    files=files,
+                    timeout=60,
+                    verify=self._webhook_verify_ssl
+                )
+
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('errcode') == 0:
+                    media_id = result.get('media_id', '')
+                    logger.info(f"文件上传成功: {os.path.basename(file_path)}, media_id={media_id}")
+                    return media_id
+                else:
+                    logger.error(f"文件上传返回错误: {result.get('errmsg', '')}")
+                    return ""
+            else:
+                logger.error(f"文件上传请求失败: HTTP {response.status_code}")
+                return ""
+
+        except Exception as e:
+            logger.error(f"文件上传异常: {e}")
+            return ""
+
+    def _send_file_message(self, media_id: str, filename: str) -> bool:
+        """
+        通过 webhook 发送文件消息
+
+        Args:
+            media_id: 文件的 media_id
+            filename: 文件名（用于日志）
+
+        Returns:
+            是否发送成功
+        """
+        if not self._wechat_url:
+            return False
+
+        try:
+            payload = {
+                "msgtype": "file",
+                "file": {
+                    "media_id": media_id
+                }
+            }
+
+            response = requests.post(
+                self._wechat_url,
+                json=payload,
+                timeout=10,
+                verify=self._webhook_verify_ssl
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('errcode') == 0:
+                    logger.info(f"企业微信文件消息发送成功: {filename}")
+                    return True
+                else:
+                    logger.error(f"企业微信文件消息发送失败: {result.get('errmsg', '')}")
+                    return False
+            else:
+                logger.error(f"企业微信文件消息请求失败: HTTP {response.status_code}")
+                return False
+
+        except Exception as e:
+            logger.error(f"企业微信文件消息发送异常: {e}")
+            return False
+
