@@ -41,7 +41,9 @@ fake-useragent>=1.4.0       # 随机 User-Agent 防封禁
 httpx[socks]                # HTTP 客户端 + SOCKS 代理支持（OpenAI 可选依赖）
 dingtalk-stream >= 0.24.3    # 钉钉 Stream SDK
 # 数据库
-# SQLite 是 Python 内置，无需额外安装
+sqlalchemy>=2.0.0           # ORM 框架
+pymysql>=1.1.0              # MySQL 数据库驱动（支持 MySQL 8.0+）
+cryptography>=41.0.0        # PyMySQL 加密连接所需
 
 # Discord 机器人
 discord.py>=2.0.0              # Discord 机器人开发库

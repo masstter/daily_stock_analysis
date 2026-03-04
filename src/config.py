@@ -185,6 +185,14 @@ class Config:
     markdown_to_image_max_chars: int = 15000  # 超过此长度不转换，避免超大图片
 
     # === 数据库配置 ===
+    # MySQL 8 数据库配置
+    db_type: str = "mysql"  # 数据库类型：mysql 或 sqlite
+    db_host: str = "localhost"  # MySQL 服务器地址
+    db_port: int = 3306  # MySQL 服务器端口
+    db_user: str = "root"  # MySQL 用户名
+    db_password: str = ""  # MySQL 密码
+    db_name: str = "stock_analysis"  # 数据库名称
+    # 下面的 database_path 仅在 db_type=sqlite 时使用
     database_path: str = "./data/stock_analysis.db"
 
     # 是否保存分析上下文快照（用于历史回溯）
@@ -540,6 +548,12 @@ class Config:
                 if c.strip()
             ],
             markdown_to_image_max_chars=int(os.getenv('MARKDOWN_TO_IMAGE_MAX_CHARS', '15000')),
+            db_type=os.getenv('DB_TYPE', 'mysql').lower(),
+            db_host=os.getenv('DB_HOST', 'localhost'),
+            db_port=int(os.getenv('DB_PORT', '3306')),
+            db_user=os.getenv('DB_USER', 'root'),
+            db_password=os.getenv('DB_PASSWORD', ''),
+            db_name=os.getenv('DB_NAME', 'stock_analysis'),
             database_path=os.getenv('DATABASE_PATH', './data/stock_analysis.db'),
             save_context_snapshot=os.getenv('SAVE_CONTEXT_SNAPSHOT', 'true').lower() == 'true',
             backtest_enabled=os.getenv('BACKTEST_ENABLED', 'true').lower() == 'true',
@@ -761,12 +775,35 @@ class Config:
     def get_db_url(self) -> str:
         """
         获取 SQLAlchemy 数据库连接 URL
-        
-        自动创建数据库目录（如果不存在）
+
+        支持 MySQL 8 和 SQLite 两种数据库:
+        - MySQL: mysql+pymysql://user:password@host:port/database?charset=utf8mb4
+        - SQLite: sqlite:////absolute/path/to/db.sqlite
+
+        Returns:
+            SQLAlchemy 数据库连接 URL
         """
-        db_path = Path(self.database_path)
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        return f"sqlite:///{db_path.absolute()}"
+        if self.db_type.lower() == 'mysql':
+            # MySQL 8 连接 URL
+            # 使用 PyMySQL 驱动，支持加密密码
+            if self.db_password:
+                # URL 编码密码中的特殊字符
+                from urllib.parse import quote_plus
+                password = quote_plus(self.db_password)
+                return (
+                    f"mysql+pymysql://{self.db_user}:{password}@{self.db_host}:{self.db_port}/{self.db_name}"
+                    f"?charset=utf8mb4"
+                )
+            else:
+                return (
+                    f"mysql+pymysql://{self.db_user}@{self.db_host}:{self.db_port}/{self.db_name}"
+                    f"?charset=utf8mb4"
+                )
+        else:
+            # SQLite 连接 URL（保持向后兼容）
+            db_path = Path(self.database_path)
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            return f"sqlite:///{db_path.absolute()}"
 
 
 # === 便捷的配置访问函数 ===
