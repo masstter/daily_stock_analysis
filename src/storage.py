@@ -156,7 +156,7 @@ class NewsIntel(Base):
     # 新闻内容
     title = Column(String(300), nullable=False)
     snippet = Column(Text)
-    url = Column(String(1000), nullable=False)
+    url = Column(String(512), nullable=False)
     source = Column(String(100))
     published_date = Column(DateTime, index=True)
 
@@ -418,31 +418,39 @@ class DatabaseManager:
     def __init__(self, db_url: Optional[str] = None):
         """
         初始化数据库管理器
-        
+
         Args:
             db_url: 数据库连接 URL（可选，默认从配置读取）
         """
         if getattr(self, '_initialized', False):
             return
-        
+
         if db_url is None:
             config = get_config()
             db_url = config.get_db_url()
-        
-        # 创建数据库引擎
-        self._engine = create_engine(
-            db_url,
-            echo=False,  # 设为 True 可查看 SQL 语句
-            pool_pre_ping=True,  # 连接健康检查
-        )
-        
+
+        # 创建数据库引擎，支持 MySQL 和 SQLite
+        engine_kwargs = {
+            'echo': False,  # 设为 True 可查看 SQL 语句
+            'pool_pre_ping': True,  # 连接健康检查
+        }
+
+        # MySQL 特定配置：设置字符编码和连接池
+        if 'mysql' in db_url:
+            engine_kwargs['pool_size'] = 10  # 连接池大小
+            engine_kwargs['max_overflow'] = 20  # 最大溢出连接数
+
+        self._engine = create_engine(db_url, **engine_kwargs)
+
+        # ...existing code...
+
         # 创建 Session 工厂
         self._SessionLocal = sessionmaker(
             bind=self._engine,
             autocommit=False,
             autoflush=False,
         )
-        
+
         # 创建所有表
         Base.metadata.create_all(self._engine)
 
