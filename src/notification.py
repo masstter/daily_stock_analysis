@@ -829,7 +829,7 @@ class NotificationService(
                 )
             report_lines.extend([
                 "",
-                "---",
+                "## 📰 分析结果详情",
                 "",
             ])
 
