@@ -422,6 +422,9 @@ class Config:
     # 分析间隔时间（秒）- 用于避免API限流
     analysis_delay: float = 0.0  # 个股分析与大盘分析之间的延迟
 
+    # 分析完成后是否发送通知（默认 true）
+    send_notification_after_analysis: bool = False  # 分析完成后自动发送通知
+
     # Merge stock + market report into one notification (Issue #190)
     merge_email_notification: bool = False
 
@@ -963,6 +966,7 @@ class Config:
             report_history_compare_n=int(os.getenv('REPORT_HISTORY_COMPARE_N', '0')),
             analysis_delay=float(os.getenv('ANALYSIS_DELAY', '0')),
             merge_email_notification=os.getenv('MERGE_EMAIL_NOTIFICATION', 'false').lower() == 'true',
+            send_notification_after_analysis=os.getenv('SEND_NOTIFICATION_AFTER_ANALYSIS', 'false').lower() == 'true',
             feishu_max_bytes=int(os.getenv('FEISHU_MAX_BYTES', '20000')),
             wechat_max_bytes=wechat_max_bytes,
             wechat_msg_type=wechat_msg_type_lower,
