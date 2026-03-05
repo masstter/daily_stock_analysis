@@ -897,7 +897,8 @@ class StockAnalysisPipeline:
             if result:
                 logger.info(
                     f"[{code}] 分析完成: {result.operation_advice}, "
-                    f"评分 {result.sentiment_score}"
+                    f"评分 {result.sentiment_score}",
+                    f"发送结果 {single_stock_notify}"
                 )
                 
                 # 单股推送模式（#55）：每分析完一只股票立即推送
