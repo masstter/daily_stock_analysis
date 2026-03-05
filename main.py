@@ -682,7 +682,7 @@ def main() -> int:
             # Determine whether to run immediately:
             # Command line arg --no-run-immediately overrides config if present.
             # Otherwise use config (defaults to True).
-            should_run_immediately = config.schedule_run_immediately
+            should_run_immediately = config.schedule_run_immediately and config.run_immediately
             if getattr(args, 'no_run_immediately', False):
                 should_run_immediately = False
 
