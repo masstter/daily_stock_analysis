@@ -13,11 +13,12 @@
 import logging
 import uuid
 from typing import Optional, Dict, Any
+from src.config import get_config
 
 from src.repositories.analysis_repo import AnalysisRepository
 
 logger = logging.getLogger(__name__)
-
+config = get_config()
 
 class AnalysisService:
     """
@@ -36,7 +37,7 @@ class AnalysisService:
         report_type: str = "detailed",
         force_refresh: bool = False,
         query_id: Optional[str] = None,
-        send_notification: bool = True
+        send_notification: bool = config.send_notification_after_analysis
     ) -> Optional[Dict[str, Any]]:
         """
         执行股票分析
