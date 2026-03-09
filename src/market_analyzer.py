@@ -150,19 +150,38 @@ class MarketAnalyzer:
 
             if data_list:
                 for item in data_list:
+                    # 数据验证和清理：确保数值字段不为 None 或 NaN
+                    def safe_float(value, default=0.0):
+                        """安全转换浮点数，避免 None/NaN 问题"""
+                        try:
+                            if value is None or (isinstance(value, float) and (value != value)):  # NaN check
+                                return default
+                            return float(value)
+                        except (ValueError, TypeError):
+                            return default
+
+                    # 特别处理成交量和成交额：如果为0或异常，使用默认值并记录警告
+                    volume = safe_float(item.get('volume', 0))
+                    amount = safe_float(item.get('amount', 0))
+
+                    # 如果成交量或成交额明显异常（为0），记录警告
+                    if volume <= 0 or amount <= 0:
+                        logger.warning(f"[大盘] {item.get('name', '未知指数')} 成交数据异常: "
+                                     f"volume={volume}, amount={amount}")
+
                     index = MarketIndex(
-                        code=item['code'],
-                        name=item['name'],
-                        current=item['current'],
-                        change=item['change'],
-                        change_pct=item['change_pct'],
-                        open=item['open'],
-                        high=item['high'],
-                        low=item['low'],
-                        prev_close=item['prev_close'],
-                        volume=item['volume'],
-                        amount=item['amount'],
-                        amplitude=item['amplitude']
+                        code=item.get('code', ''),
+                        name=item.get('name', ''),
+                        current=safe_float(item.get('current', 0)),
+                        change=safe_float(item.get('change', 0)),
+                        change_pct=safe_float(item.get('change_pct', 0)),
+                        open=safe_float(item.get('open', 0)),
+                        high=safe_float(item.get('high', 0)),
+                        low=safe_float(item.get('low', 0)),
+                        prev_close=safe_float(item.get('prev_close', 0)),
+                        volume=volume,
+                        amount=amount,
+                        amplitude=safe_float(item.get('amplitude', 0))
                     )
                     indices.append(index)
 
@@ -184,16 +203,41 @@ class MarketAnalyzer:
             stats = self.data_manager.get_market_stats()
 
             if stats:
-                overview.up_count = stats.get('up_count', 0)
-                overview.down_count = stats.get('down_count', 0)
-                overview.flat_count = stats.get('flat_count', 0)
-                overview.limit_up_count = stats.get('limit_up_count', 0)
-                overview.limit_down_count = stats.get('limit_down_count', 0)
-                overview.total_amount = stats.get('total_amount', 0.0)
+                # 数据验证和清理
+                def safe_int(value, default=0):
+                    """安全转换整数，避免 None 问题"""
+                    try:
+                        if value is None:
+                            return default
+                        return int(value)
+                    except (ValueError, TypeError):
+                        return default
+
+                def safe_float(value, default=0.0):
+                    """安全转换浮点数，避免 None/NaN 问题"""
+                    try:
+                        if value is None or (isinstance(value, float) and (value != value)):  # NaN check
+                            return default
+                        return float(value)
+                    except (ValueError, TypeError):
+                        return default
+
+                overview.up_count = safe_int(stats.get('up_count', 0))
+                overview.down_count = safe_int(stats.get('down_count', 0))
+                overview.flat_count = safe_int(stats.get('flat_count', 0))
+                overview.limit_up_count = safe_int(stats.get('limit_up_count', 0))
+                overview.limit_down_count = safe_int(stats.get('limit_down_count', 0))
+                overview.total_amount = safe_float(stats.get('total_amount', 0.0))
+
+                # 如果成交额明显异常（为0或负数），记录警告
+                if overview.total_amount <= 0:
+                    logger.warning(f"[大盘] 成交额数据异常: total_amount={overview.total_amount}")
 
                 logger.info(f"[大盘] 涨:{overview.up_count} 跌:{overview.down_count} 平:{overview.flat_count} "
                           f"涨停:{overview.limit_up_count} 跌停:{overview.limit_down_count} "
                           f"成交额:{overview.total_amount:.0f}亿")
+            else:
+                logger.warning("[大盘] 未获取到市场统计数据")
 
         except Exception as e:
             logger.error(f"[大盘] 获取涨跌统计失败: {e}")
