@@ -132,12 +132,30 @@ class StockAnalysisPipeline:
             stock_name = self.fetcher_manager.get_stock_name(code)
 
             today = date.today()
-            # 注意：这里用自然日 date.today() 做“断点续传”判断。
+
+            # 获取股票所属市场
+            market = get_market_for_stock(code)
+
+            # 如果今天不是交易日，自动调整到最近的交易日
+            if market and not is_market_open(market, today):
+                logger.info(f"[{code}] 今日非交易日，自动调整到最近交易日进行分析")
+                # 向后查找最近的交易日（最多查找7天）
+                check_date = today
+                for _ in range(self.config.backtest_eval_window_days):
+                    check_date -= timedelta(days=1)
+                    if is_market_open(market, check_date):
+                        logger.info(f"[{code}] 调整到最近交易日: {check_date}")
+                        today = check_date
+                        break
+                else:
+                    logger.warning(f"[{code}] 未找到最近交易日，使用今日数据")
+
+            # 注意：这里用自然日 date.today() 做"断点续传"判断。
             # 若在周末/节假日/非交易日运行，或机器时区不在中国，可能出现：
             # - 数据库已有最新交易日数据但仍会重复拉取（has_today_data 返回 False）
-            # - 或在跨日/时区偏移时误判“今日已有数据”
-            # 该行为目前保留（按需求不改逻辑），但如需更严谨可改为“最新交易日/数据源最新日期”判断。
-            
+            # - 或在跨日/时区偏移时误判"今日已有数据"
+            # 该行为目前保留（按需求不改逻辑），但如需更严谨可改为"最新交易日/数据源最新日期"判断。
+
             # 断点续传检查：如果今日数据已存在，跳过
             if not force_refresh and self.db.has_today_data(code, today):
                 logger.info(f"{stock_name}({code}) 今日数据已存在，跳过获取（断点续传）")

@@ -218,46 +218,64 @@ class StockTrendAnalyzer:
         if df is None or df.empty or len(df) < 20:
             logger.warning(f"{code} 数据不足，无法进行趋势分析")
             result.risk_factors.append("数据不足，无法完成分析")
+            # 设置默认值，避免返回空结果
+            result.trend_status = TrendStatus.CONSOLIDATION
+            result.ma_alignment = "数据不足，无法判断趋势"
+            result.trend_strength = 0
+            result.trend_prediction = "数据不足"
             return result
         
-        # 确保数据按日期排序
-        df = df.sort_values('date').reset_index(drop=True)
-        
-        # 计算均线
-        df = self._calculate_mas(df)
+        try:
+            # 确保数据按日期排序
+            df = df.sort_values('date').reset_index(drop=True)
 
-        # 计算 MACD 和 RSI
-        df = self._calculate_macd(df)
-        df = self._calculate_rsi(df)
+            # 计算均线
+            df = self._calculate_mas(df)
 
-        # 获取最新数据
-        latest = df.iloc[-1]
-        result.current_price = float(latest['close'])
-        result.ma5 = float(latest['MA5'])
-        result.ma10 = float(latest['MA10'])
-        result.ma20 = float(latest['MA20'])
-        result.ma60 = float(latest.get('MA60', 0))
+            # 计算 MACD 和 RSI
+            df = self._calculate_macd(df)
+            df = self._calculate_rsi(df)
 
-        # 1. 趋势判断
-        self._analyze_trend(df, result)
+            # 获取最新数据
+            latest = df.iloc[-1]
+            result.current_price = float(latest['close'])
+            result.ma5 = float(latest['MA5'])
+            result.ma10 = float(latest['MA10'])
+            result.ma20 = float(latest['MA20'])
+            result.ma60 = float(latest.get('MA60', 0))
 
-        # 2. 乖离率计算
-        self._calculate_bias(result)
+            # 1. 趋势判断
+            self._analyze_trend(df, result)
 
-        # 3. 量能分析
-        self._analyze_volume(df, result)
+            # 2. 乖离率计算
+            self._calculate_bias(result)
 
-        # 4. 支撑压力分析
-        self._analyze_support_resistance(df, result)
+            # 3. 量能分析
+            self._analyze_volume(df, result)
 
-        # 5. MACD 分析
-        self._analyze_macd(df, result)
+            # 4. 支撑压力分析
+            self._analyze_support_resistance(df, result)
 
-        # 6. RSI 分析
-        self._analyze_rsi(df, result)
+            # 5. MACD 分析
+            self._analyze_macd(df, result)
 
-        # 7. 生成买入信号
-        self._generate_signal(result)
+            # 6. RSI 分析
+            self._analyze_rsi(df, result)
+
+            # 7. 生成买入信号
+            self._generate_signal(result)
+
+            # 设置趋势预测描述
+            result.trend_prediction = result.trend_status.value
+
+        except Exception as e:
+            logger.error(f"{code} 趋势分析异常: {e}")
+            result.risk_factors.append(f"分析异常: {str(e)}")
+            # 设置默认值
+            result.trend_status = TrendStatus.CONSOLIDATION
+            result.ma_alignment = "分析异常，无法判断趋势"
+            result.trend_strength = 0
+            result.trend_prediction = "分析异常"
 
         return result
     
@@ -590,7 +608,7 @@ class StockTrendAnalyzer:
         - 量能（15分）：缩量回调得分高
         - 支撑（10分）：获得均线支撑得分高
         - MACD（15分）：金叉和多头得分高
-        - RSI（10分）：超卖和强势得分高
+        - RSI（10分）：超卖超强势得分高
         """
         score = 0
         reasons = []
