@@ -210,6 +210,13 @@ def parse_arguments() -> argparse.Namespace:
         help='强制回测（即使已有回测结果也重新计算）'
     )
 
+    parser.add_argument(
+        '--name',
+        type=str,
+        default='stock_analysis',
+        help='用来标识进程名称'
+    )
+
     return parser.parse_args()
 
 
