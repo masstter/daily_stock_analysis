@@ -6,7 +6,8 @@
 {% set dash = e.result.dashboard or {} %}
 {% set core = (dash.get('core_conclusion') or {}) if dash else {} %}
 {% set one = (core.get('one_sentence') or e.result.analysis_summary or '')[:60] %}
-**{{ e.stock_name }}({{ e.result.code }})** {{ e.signal_emoji }} {{ e.result.operation_advice }} | 评分{{ e.result.sentiment_score }} | {{ one }}
+{% set ds = e.result.dimension_scores %}
+**{{ e.stock_name }}({{ e.result.code }})** {{ e.signal_emoji }} {{ e.result.operation_advice }} | 评分{{ e.result.sentiment_score }}{% if ds %}/综合{{ ds.overall_score }}{% endif %} | {{ one }}
 {% endfor %}
 
 *{{ report_timestamp }}*

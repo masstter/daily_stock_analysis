@@ -1,4 +1,27 @@
 {# Shared macros for report templates #}
+
+{% macro dimension_scores_table(result) %}
+{% set ds = result.dimension_scores %}
+{% if ds %}
+### 📊 多维度评分
+
+| 维度 | 评分 | 评级 |
+|------|------|------|
+| 📈 技术面 | {{ ds.technical_score }} | {{ ds.get_rating(ds.technical_score) }} |
+| 🏢 基本面 | {{ ds.fundamental_score }} | {{ ds.get_rating(ds.fundamental_score) }} |
+| 📰 消息面 | {{ ds.sentiment_score }} | {{ ds.get_rating(ds.sentiment_score) }} |
+| 🎯 综合评分 | {{ ds.overall_score }} | {{ ds.get_rating(ds.overall_score) }} |
+
+{% endif %}
+{% endmacro %}
+
+{% macro dimension_scores_inline(result) %}
+{% set ds = result.dimension_scores %}
+{% if ds %}
+🏢 **评分:** 技术{{ ds.technical_score }} | 基本{{ ds.fundamental_score }} | 消息{{ ds.sentiment_score }} | 综合{{ ds.overall_score }}
+{% endif %}
+{% endmacro %}
+
 {% macro market_snapshot(result) %}
 {% set snapshot = result.market_snapshot if result.market_snapshot else {} %}
 {% if snapshot %}

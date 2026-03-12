@@ -1,3 +1,4 @@
+{% from '_macros.j2' import dimension_scores_inline %}
 ## 🎯 {{ report_date }} 决策仪表盘
 
 > {{ results|length }}只股票 | 🟢买入:{{ buy_count }} 🟡观望:{{ hold_count }} 🔴卖出:{{ sell_count }}
@@ -21,6 +22,8 @@
 {% if one_sentence %}
 📌 **{{ one_sentence[:80] }}**
 {% endif %}
+
+{{ dimension_scores_inline(result) }}
 
 {% if intel.get('earnings_outlook') %}
 📊 业绩: {{ intel.earnings_outlook[:60] }}

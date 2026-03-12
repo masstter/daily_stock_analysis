@@ -25,7 +25,7 @@ from src.config import get_config, Config
 from src.storage import get_db
 from data_provider import DataFetcherManager
 from data_provider.realtime_types import ChipDistribution
-from src.analyzer import GeminiAnalyzer, AnalysisResult, fill_chip_structure_if_needed
+from src.analyzer import GeminiAnalyzer, AnalysisResult, DimensionScores, fill_chip_structure_if_needed
 from src.data.stock_mapping import STOCK_NAME_MAP
 from src.notification import NotificationService, NotificationChannel
 from src.search_service import SearchService
@@ -659,6 +659,34 @@ class StockAnalysisPipeline:
             if not result.error_message:
                 result.error_message = "Agent 未能生成有效的决策仪表盘"
 
+        # Agent path does not go through GeminiAnalyzer._parse_response;
+        # compute dimension scores explicitly to keep Notification rendering stable.
+        try:
+            from src.dimension_scorer import DimensionScorer
+
+            scorer = DimensionScorer()
+            scores = scorer.calculate_scores(result)
+            result.dimension_scores = DimensionScores(
+                technical_score=scores.get("technical_score", -1),
+                ma_score=scores.get("ma_score", -1),
+                volume_score=scores.get("volume_score", -1),
+                pattern_score=scores.get("pattern_score", -1),
+                fundamental_score=scores.get("fundamental_score", -1),
+                valuation_score=scores.get("valuation_score", -1),
+                growth_score=scores.get("growth_score", -1),
+                sentiment_score=scores.get("sentiment_score", -1),
+                news_score=scores.get("news_score", -1),
+                catalyst_score=scores.get("catalyst_score", -1),
+                overall_score=scores.get("overall_score", -1),
+            )
+        except Exception as e:
+            logger.warning("[%s] 计算维度评分失败，使用默认值: %s", code, e)
+            result.dimension_scores = DimensionScores(
+                technical_score=-1, ma_score=-1, volume_score=-1, pattern_score=-1,
+                fundamental_score=-1, valuation_score=-1, growth_score=-1,
+                sentiment_score=-1, news_score=-1, catalyst_score=-1, overall_score=-1,
+            )
+
         return result
 
     @staticmethod
@@ -939,9 +967,7 @@ class StockAnalysisPipeline:
             
             if result:
                 logger.info(
-                    f"[{code}] 分析完成: {result.operation_advice}, "
-                    f"评分 {result.sentiment_score}",
-                    f"发送结果 {single_stock_notify}"
+                    f"[{code}] 分析完成: {result.operation_advice}, 评分 {result.sentiment_score}, 发送结果 {single_stock_notify}"
                 )
                 
                 # 单股推送模式（#55）：每分析完一只股票立即推送

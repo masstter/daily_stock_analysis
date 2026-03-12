@@ -920,7 +920,7 @@ class GeminiAnalyzer:
         
         # 如果模型不可用，返回默认结果
         if not self.is_available():
-            return AnalysisResult(
+            result = AnalysisResult(
                 code=code,
                 name=name,
                 sentiment_score=50,
@@ -933,6 +933,8 @@ class GeminiAnalyzer:
                 error_message='LLM API Key 未配置',
                 model_used=None,
             )
+            result.dimension_scores = self._calculate_dimension_scores(result)
+            return result
         
         try:
             # 格式化输入（包含技术面数据和新闻）
@@ -1019,7 +1021,7 @@ class GeminiAnalyzer:
             
         except Exception as e:
             logger.error(f"AI 分析 {name}({code}) 失败: {e}")
-            return AnalysisResult(
+            result = AnalysisResult(
                 code=code,
                 name=name,
                 sentiment_score=50,
@@ -1032,6 +1034,8 @@ class GeminiAnalyzer:
                 error_message=str(e),
                 model_used=None,
             )
+            result.dimension_scores = self._calculate_dimension_scores(result)
+            return result
     
     def _format_prompt(
         self, 
@@ -1460,8 +1464,8 @@ class GeminiAnalyzer:
                     success=True,
                 )
 
-                # 计算多维度评分
-                result.dimension_scores = self._calculate_dimension_scores(data)
+                # 计算多维度评分（优先使用已解析的 AnalysisResult 字段，以确保 dashboard 嵌套字段也被提取）
+                result.dimension_scores = self._calculate_dimension_scores(result)
 
                 return result
             else:
@@ -1530,7 +1534,7 @@ class GeminiAnalyzer:
         # 截取前500字符作为摘要
         summary = response_text[:500] if response_text else '无分析结果'
         
-        return AnalysisResult(
+        result = AnalysisResult(
             code=code,
             name=name,
             sentiment_score=sentiment_score,
@@ -1544,7 +1548,10 @@ class GeminiAnalyzer:
             raw_response=response_text,
             success=True,
         )
-    
+        # 使用文本内容计算维度评分（即使 JSON 解析失败，也保证维度评分不为空）
+        result.dimension_scores = self._calculate_dimension_scores(result)
+        return result
+
     def batch_analyze(
         self, 
         contexts: List[Dict[str, Any]],
@@ -1574,35 +1581,43 @@ class GeminiAnalyzer:
         
         return results
 
-    def _calculate_dimension_scores(self, analysis_data: Dict[str, Any]) -> 'DimensionScores':
+    def _calculate_dimension_scores(self, analysis_data: Any) -> 'DimensionScores':
         """
         计算多维度评分
 
         Args:
-            analysis_data: 分析结果数据（AI返回的JSON）
+            analysis_data: 分析结果数据（支持 AI 返回的 JSON dict 或 AnalysisResult 对象）
 
         Returns:
             DimensionScores 对象
         """
-        from src.dimension_scorer import DimensionScorer
+        try:
+            from src.dimension_scorer import DimensionScorer
 
-        scorer = DimensionScorer()
-        scores = scorer.calculate_scores(analysis_data)
+            scorer = DimensionScorer()
+            scores = scorer.calculate_scores(analysis_data)
 
-        # 构建DimensionScores对象
-        return DimensionScores(
-            technical_score=scores.get('technical_score', 50),
-            ma_score=scores.get('ma_score', 50),
-            volume_score=scores.get('volume_score', 50),
-            pattern_score=scores.get('pattern_score', 50),
-            fundamental_score=scores.get('fundamental_score', 50),
-            valuation_score=scores.get('valuation_score', 50),
-            growth_score=scores.get('growth_score', 50),
-            sentiment_score=scores.get('sentiment_score', 50),
-            news_score=scores.get('news_score', 50),
-            catalyst_score=scores.get('catalyst_score', 50),
-            overall_score=scores.get('overall_score', 50),
-        )
+            # 构建DimensionScores对象
+            return DimensionScores(
+                technical_score=scores.get('technical_score', 50),
+                ma_score=scores.get('ma_score', 50),
+                volume_score=scores.get('volume_score', 50),
+                pattern_score=scores.get('pattern_score', 50),
+                fundamental_score=scores.get('fundamental_score', 50),
+                valuation_score=scores.get('valuation_score', 50),
+                growth_score=scores.get('growth_score', 50),
+                sentiment_score=scores.get('sentiment_score', 50),
+                news_score=scores.get('news_score', 50),
+                catalyst_score=scores.get('catalyst_score', 50),
+                overall_score=scores.get('overall_score', 50),
+            )
+        except Exception as e:
+            logger.warning(f"计算维度评分失败，使用默认值: {e}")
+            return DimensionScores(
+                technical_score=50, ma_score=50, volume_score=50, pattern_score=50,
+                fundamental_score=50, valuation_score=50, growth_score=50,
+                sentiment_score=50, news_score=50, catalyst_score=50, overall_score=50,
+            )
 
 
 # 便捷函数

@@ -178,6 +178,8 @@ class TestAgentResultConversion(unittest.TestCase):
         self.assertEqual(result.decision_type, "hold")
         self.assertIn("agent:gemini", result.data_sources)
         self.assertIsNotNone(result.dashboard)
+        self.assertIsNotNone(result.dimension_scores)
+        self.assertIsInstance(result.dimension_scores.overall_score, int)
 
     def test_convert_failed_dashboard(self):
         """Failed AgentResult should produce a minimal AnalysisResult."""
@@ -202,6 +204,8 @@ class TestAgentResultConversion(unittest.TestCase):
         self.assertEqual(result.sentiment_score, 50)
         self.assertEqual(result.operation_advice, "观望")
         self.assertIn("Max steps exceeded", result.error_message)
+        self.assertIsNotNone(result.dimension_scores)
+        self.assertEqual(result.dimension_scores.overall_score, 50)
 
     def test_convert_uses_dashboard_stock_name_when_input_is_placeholder(self):
         """When input name is placeholder-like, prefer dashboard stock_name."""
