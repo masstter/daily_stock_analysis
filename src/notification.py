@@ -218,7 +218,7 @@ class NotificationService(
             if model:
                 models.append(model)
         return list(dict.fromkeys(models))
-    
+
     def _detect_all_channels(self) -> List[NotificationChannel]:
         """
         检测所有已配置的渠道
@@ -1099,7 +1099,7 @@ class NotificationService(
         lines = [
             f"## 🎯 {report_date} 决策仪表盘",
             "",
-            f"> {len(results)}只股票 | 🟢买入:{buy_count} 🟡观望:{hold_count} 🔴卖出:{sell_count}",
+            f"> 共分析{len(results)}只股票 | 🟢买入:{buy_count} 🟡观望:{hold_count} 🔴卖出:{sell_count}",
             "",
         ]
         
@@ -1127,7 +1127,7 @@ class NotificationService(
                 stock_name = self._escape_md(stock_name)
                 
                 # 标题行：信号等级 + 股票名称
-                lines.append(f"### {signal_emoji} **{signal_text}** | {stock_name}({result.code})")
+                lines.append(f"### {signal_emoji} **{signal_text}** | {stock_name}({result.code}) | 评分 {result.sentiment_score}({result.trend_prediction})")
                 lines.append("")
                 
                 # 核心决策（一句话）
@@ -1225,9 +1225,9 @@ class NotificationService(
         
         # 底部
         lines.append(f"*报告时间: {datetime.now().strftime('%H:%M')}*")
-        models = self._collect_models_used(results)
-        if models:
-            lines.append(f"*分析模型: {', '.join(models)}*")
+        # models = self._collect_models_used(results)
+        # if models:
+        #     lines.append(f"*分析模型: {', '.join(models)}*")
 
         content = "\n".join(lines)
         
@@ -1448,7 +1448,7 @@ class NotificationService(
                     info_added = True
                 lines.append("")
                 lines.append("🚨 **风险警报**:")
-                for risk in risks[:3]:
+                for risk in risks[:5]:
                     lines.append(f"- {str(risk)[:100]}")
             
             # 利好催化
@@ -1456,7 +1456,7 @@ class NotificationService(
             if catalysts:
                 lines.append("")
                 lines.append("✨ **利好催化**:")
-                for cat in catalysts[:3]:
+                for cat in catalysts[:5]:
                     lines.append(f"- {str(cat)[:100]}")
         
         if info_added:
