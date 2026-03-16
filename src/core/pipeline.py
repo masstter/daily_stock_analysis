@@ -1238,7 +1238,7 @@ class StockAnalysisPipeline:
                 context_success = self.notifier.send_to_context(report)
 
                 # Issue #455: Markdown 转图片（与 notification.send 逻辑一致）
-                from src.md2img import markdown_to_image
+                from src.md2img import markdown_to_image, _markdown_to_image_m2f
 
                 channels_needing_image = {
                     ch for ch in channels
@@ -1248,7 +1248,13 @@ class StockAnalysisPipeline:
                     ch for ch in channels_needing_image if ch != NotificationChannel.WECHAT
                 }
 
+                force_markdown_to_png = getattr(
+                    self.config, "force_markdown_to_png", False
+                )
+
                 def _get_md2img_hint() -> str:
+                    if force_markdown_to_png:
+                        return "npm i -g markdown-to-file（已启用 FORCE_MARKDOWN_TO_PNG）"
                     try:
                         engine = getattr(get_config(), "md2img_engine", "wkhtmltoimage")
                     except Exception:
@@ -1258,11 +1264,22 @@ class StockAnalysisPipeline:
                         else "wkhtmltopdf (apt install wkhtmltopdf / brew install wkhtmltopdf)"
                     )
 
+                def _convert_markdown_to_png(markdown_text: str) -> Optional[bytes]:
+                    max_chars = self.notifier._markdown_to_image_max_chars
+                    if len(markdown_text) > max_chars:
+                        logger.warning(
+                            "Markdown content (%d chars) exceeds max_chars (%d), skipping image conversion",
+                            len(markdown_text),
+                            max_chars,
+                        )
+                        return None
+                    if force_markdown_to_png:
+                        return _markdown_to_image_m2f(markdown_text)
+                    return markdown_to_image(markdown_text, max_chars=max_chars)
+
                 image_bytes = None
-                if non_wechat_channels_needing_image:
-                    image_bytes = markdown_to_image(
-                        report, max_chars=self.notifier._markdown_to_image_max_chars
-                    )
+                if non_wechat_channels_needing_image or force_markdown_to_png:
+                    image_bytes = _convert_markdown_to_png(report)
                     if image_bytes:
                         logger.info(
                             "Markdown 已转换为图片，将向 %s 发送图片",
@@ -1285,10 +1302,7 @@ class StockAnalysisPipeline:
                     logger.debug(f"企业微信推送内容:\n{dashboard_content}")
                     wechat_image_bytes = None
                     if NotificationChannel.WECHAT in channels_needing_image:
-                        wechat_image_bytes = markdown_to_image(
-                            dashboard_content,
-                            max_chars=self.notifier._markdown_to_image_max_chars,
-                        )
+                        wechat_image_bytes = _convert_markdown_to_png(dashboard_content)
                         if wechat_image_bytes is None:
                             logger.warning(
                                 "企业微信 Markdown 转图片失败，将回退为文本发送。请检查 MARKDOWN_TO_IMAGE_CHANNELS 配置并安装 %s",
@@ -1338,10 +1352,7 @@ class StockAnalysisPipeline:
                                 grp_report = self._generate_aggregate_report(group_results, report_type)
                                 grp_image_bytes = None
                                 if channel.value in self.notifier._markdown_to_image_channels:
-                                    grp_image_bytes = markdown_to_image(
-                                        grp_report,
-                                        max_chars=self.notifier._markdown_to_image_max_chars,
-                                    )
+                                    grp_image_bytes = _convert_markdown_to_png(grp_report)
                                 use_image = self.notifier._should_use_image_for_channel(
                                     channel, grp_image_bytes
                                 )

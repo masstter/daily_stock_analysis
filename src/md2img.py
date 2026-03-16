@@ -17,6 +17,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from typing import Optional
 
@@ -27,7 +28,8 @@ logger = logging.getLogger(__name__)
 
 def _markdown_to_image_m2f(markdown_text: str) -> Optional[bytes]:
     """Convert Markdown to PNG via markdown-to-file (m2f) CLI. Better emoji support (Issue #455)."""
-    if shutil.which("m2f") is None:
+    m2f_exec = shutil.which("m2f")
+    if m2f_exec is None:
         logger.warning(
             "m2f (markdown-to-file) not found in PATH. "
             "Install with: npm i -g markdown-to-file. Fallback to text."
@@ -41,11 +43,15 @@ def _markdown_to_image_m2f(markdown_text: str) -> Optional[bytes]:
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(markdown_text)
 
+        # Windows: npm installs m2f as m2f.cmd; subprocess needs shell=True to run .cmd scripts.
+        # On other platforms, use the resolved path directly without shell.
+        use_shell = sys.platform == "win32"
         result = subprocess.run(
-            ["m2f", md_path, "png", f"outputDirectory={temp_dir}"],
+            [m2f_exec, md_path, "png", f"outputDirectory={temp_dir}"],
             capture_output=True,
             timeout=60,
             check=False,
+            shell=use_shell,
         )
         png_path = os.path.join(temp_dir, "report.png")
         if result.returncode != 0 or not os.path.isfile(png_path):

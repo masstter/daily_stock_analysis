@@ -12,10 +12,12 @@ import base64
 import hashlib
 import requests
 import time
+from pathlib import Path
 
-from src.config import Config
+from src.config import get_config, Config
 from src.formatters import chunk_content_by_max_bytes
 
+config = get_config()
 
 logger = logging.getLogger(__name__)
 
@@ -195,9 +197,13 @@ class WechatSender:
         """
         上传文件到企业微信并发送文件消息
 
+        对于 Markdown 文件（.md），自动转换为 PNG 图片后再发送。
+        其他文件类型直接上传。
+
         步骤：
-        1. 调用 upload_media API 上传文件，获取 media_id
-        2. 调用 webhook 发送文件消息（file 类型）
+        1. 若为 .md 文件，读取内容并转换为 PNG 图片，保存到同目录
+        2. 调用 upload_media API 上传文件（PNG 或原始文件），获取 media_id
+        3. 调用 webhook 发送文件消息（file 类型）
 
         企业微信文件消息格式：
         {
@@ -221,19 +227,68 @@ class WechatSender:
             logger.error(f"文件不存在: {file_path}")
             return False
 
+        actual_file_path = file_path
         try:
+            # 如果是 .md 文件，转换为 PNG
+            if config.force_markdown_file_to_png and file_path.lower().endswith('.md'):
+                png_file_path = self._convert_md_to_png_file(file_path)
+                if png_file_path:
+                    actual_file_path = png_file_path
+                    logger.info(f"Markdown 文件已转换为 PNG: {png_file_path}")
+                else:
+                    logger.warning(f"Markdown 转 PNG 失败，将发送原始 .md 文件: {file_path}")
+
             # 1. 上传文件获取 media_id
-            media_id = self._upload_media(file_path)
+            media_id = self._upload_media(actual_file_path)
             if not media_id:
-                logger.error(f"文件上传失败: {file_path}")
+                logger.error(f"文件上传失败: {actual_file_path}")
                 return False
 
             # 2. 发送文件消息
-            return self._send_file_message(media_id, os.path.basename(file_path))
+            return self._send_file_message(media_id, os.path.basename(actual_file_path))
 
         except Exception as e:
             logger.error(f"企业微信文件发送异常: {e}")
             return False
+
+    def _convert_md_to_png_file(self, md_file_path: str) -> str:
+        """
+        将 Markdown 文件转换为 PNG 图片，保存到同目录。
+
+        Args:
+            md_file_path: Markdown 文件路径
+
+        Returns:
+            PNG 文件路径，转换失败返回空字符串
+        """
+        try:
+            # 读取 Markdown 文件内容
+            with open(md_file_path, 'r', encoding='utf-8') as f:
+                md_content = f.read()
+
+            # 调用转图函数
+            from src.md2img import markdown_to_image
+            png_bytes = markdown_to_image(md_content)
+
+            if not png_bytes:
+                logger.warning(f"Markdown 转图片失败（转图函数返回 None）: {md_file_path}")
+                return ""
+
+            # 生成 PNG 文件路径（同目录，相同基名但扩展名为 .png）
+            md_path = Path(md_file_path)
+            png_file_path = md_path.parent / f"{md_path.stem}.png"
+
+            # 保存 PNG 文件
+            with open(png_file_path, 'wb') as f:
+                f.write(png_bytes)
+
+            logger.info(f"PNG 文件已保存: {png_file_path}")
+            return str(png_file_path)
+
+        except Exception as e:
+            logger.error(f"Markdown 转 PNG 文件失败: {e}")
+            return ""
+
 
     def _upload_media(self, file_path: str) -> str:
         """

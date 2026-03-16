@@ -438,6 +438,8 @@ class Config:
     markdown_to_image_channels: List[str] = field(default_factory=list)  # 逗号分隔：telegram,wechat,custom,email
     markdown_to_image_max_chars: int = 15000  # 超过此长度不转换，避免超大图片
     md2img_engine: str = "wkhtmltoimage"  # wkhtmltoimage | markdown-to-file (Issue #455, better emoji support)
+    force_markdown_to_png: bool = False  # 转消息：强制使用输出 PNG（仅通知转图）
+    force_markdown_file_to_png: bool = False  # 转消息文件：强制使用输出 PNG（仅通知转图）
 
     # 实时行情预取（Issue #455）：设为 false 可禁用，避免 efinance/akshare_em 全市场拉取
     prefetch_realtime_quotes: bool = True
@@ -977,6 +979,8 @@ class Config:
                 if c.strip()
             ],
             markdown_to_image_max_chars=int(os.getenv('MARKDOWN_TO_IMAGE_MAX_CHARS', '15000')),
+            force_markdown_to_png=os.getenv('FORCE_MARKDOWN_TO_PNG', 'false').lower() == 'true',
+            force_markdown_file_to_png=os.getenv('FORCE_MARKDOWN_FILE_TO_PNG', 'false').lower() == 'true',
             db_type=os.getenv('DB_TYPE', 'mysql').lower(),
             db_host=os.getenv('DB_HOST', 'localhost'),
             db_port=int(os.getenv('DB_PORT', '3306')),
