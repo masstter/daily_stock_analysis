@@ -235,7 +235,7 @@ def setup_env(override: bool = False):
                   Default is False to preserve behavior on initial load where
                   system environment variables take precedence.
     """
-    # src/config.py -> src/ -> root
+    # src/config.py -> src/-> root
     env_file = os.getenv("ENV_FILE")
     if env_file:
         env_path = Path(env_file)
@@ -411,7 +411,8 @@ class Config:
     report_integrity_enabled: bool = True  # Content integrity validation after LLM output
     report_integrity_retry: int = 1  # Retry count when mandatory fields missing (0 = placeholder only)
     report_history_compare_n: int = 0  # History comparison count (0 = disabled)
-
+    report_retention_days: int = 7  # reports 目录历史文件保留天数（含当天）
+    
     # PushPlus 推送配置
     pushplus_token: Optional[str] = None  # PushPlus Token
     pushplus_topic: Optional[str] = None  # PushPlus 群组编码（一对多推送）
@@ -966,6 +967,7 @@ class Config:
             report_integrity_enabled=os.getenv('REPORT_INTEGRITY_ENABLED', 'true').lower() == 'true',
             report_integrity_retry=int(os.getenv('REPORT_INTEGRITY_RETRY', '1')),
             report_history_compare_n=int(os.getenv('REPORT_HISTORY_COMPARE_N', '0')),
+            report_retention_days=max(1, int(os.getenv('REPORT_RETENTION_DAYS', '7'))),
             analysis_delay=float(os.getenv('ANALYSIS_DELAY', '0')),
             merge_email_notification=os.getenv('MERGE_EMAIL_NOTIFICATION', 'false').lower() == 'true',
             send_notification_after_analysis=os.getenv('SEND_NOTIFICATION_AFTER_ANALYSIS', 'false').lower() == 'true',

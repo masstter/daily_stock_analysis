@@ -9,10 +9,10 @@
 2. 向企业微信发送报告文件
 3. 支持多种文件类型（md、xlsx 等）
 """
-import os
+import re
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List
 
 logger = logging.getLogger(__name__)
@@ -140,3 +140,54 @@ class ReportFileManager:
         # 按修改时间倒序排列
         return sorted(files, key=lambda f: f.stat().st_mtime, reverse=True)
 
+    def _extract_report_date(self, file_name: str, prefix: str) -> Optional[datetime]:
+        """从报告文件名中提取日期（如 report_20260316.md -> 2026-03-16）。"""
+        pattern = rf"^{re.escape(prefix)}_(\d{{8}})\..+$"
+        match = re.match(pattern, file_name)
+        if not match:
+            return None
+        try:
+            return datetime.strptime(match.group(1), "%Y%m%d")
+        except ValueError:
+            return None
+
+    def cleanup_history_files(self, retain_days: int = 7) -> int:
+        """
+        清理 reports 目录中的历史报告文件。
+
+        保留最近 retain_days 天（含今天）的 report_* 与 market_review_* 文件。
+
+        Args:
+            retain_days: 保留天数，默认 7
+
+        Returns:
+            删除的文件数量
+        """
+        if retain_days <= 0:
+            logger.warning("REPORT_RETENTION_DAYS=%s 非法，自动回退为 7", retain_days)
+            retain_days = 7
+
+        cutoff_date = (datetime.now() - timedelta(days=retain_days - 1)).date()
+        deleted_count = 0
+
+        for prefix in self.REPORT_PREFIXES:
+            for file_path in self.report_dir.glob(f"{prefix}_*.*"):
+                if not file_path.is_file():
+                    continue
+                file_dt = self._extract_report_date(file_path.name, prefix)
+                if file_dt is None:
+                    continue
+                if file_dt.date() < cutoff_date:
+                    try:
+                        file_path.unlink()
+                        deleted_count += 1
+                        logger.info("已清理历史报告文件: %s", file_path.name)
+                    except Exception as e:
+                        logger.warning("清理历史报告文件失败 %s: %s", file_path.name, e)
+
+        logger.info(
+            "报告历史清理完成：保留近 %s 天，删除 %s 个文件",
+            retain_days,
+            deleted_count,
+        )
+        return deleted_count

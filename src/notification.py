@@ -1149,19 +1149,16 @@ class NotificationService(
                     lines.append("")
 
                 # 重要信息区（舆情+基本面）
-                info_lines = []
-                
                 # 业绩预期
                 if intel.get('earnings_outlook'):
                     outlook = str(intel['earnings_outlook'])[:100]
-                    info_lines.append(f"📊 **业绩**: {outlook}")
+                    lines.append(f"📊 **业绩**: {outlook}")
+                    lines.append("")
                 if intel.get('sentiment_summary'):
                     sentiment = str(intel['sentiment_summary'])[:100]
-                    info_lines.append(f"💭 **舆情**: {sentiment}")
-                if info_lines:
-                    lines.extend(info_lines)
+                    lines.append(f"💭 **舆情**: {sentiment}")
                     lines.append("")
-                
+
                 # 风险警报（最重要，醒目显示）
                 risks = intel.get('risk_alerts', []) if intel else []
                 if risks:
@@ -1180,7 +1177,7 @@ class NotificationService(
                         cat_str = str(cat)
                         cat_text = cat_str[:100] + "..." if len(cat_str) > 50 else cat_str
                         lines.append(f"   • {cat_text}")
-                    # lines.append("")
+                    lines.append("")
                 
                 # 狙击点位
                 sniper = battle.get('sniper_points', {}) if battle else {}
@@ -1206,9 +1203,10 @@ class NotificationService(
                     has_pos = str(pos_advice.get('has_position', ''))
                     if no_pos:
                         lines.append(f"🎊 **空仓建议**: {no_pos[:100]}")
+                        lines.append("")
                     if has_pos:
                         lines.append(f"💼 **持仓建议**: {has_pos[:100]}")
-                    lines.append("")
+                        lines.append("")
                 
                 # 检查清单简化版
                 checklist = battle.get('action_checklist', []) if battle else []
@@ -1219,7 +1217,7 @@ class NotificationService(
                         lines.append("**💔危险信号清单**:")
                         for check in failed_checks[:5]:
                             lines.append(f"   {check[:100]}")
-                        lines.append("")
+                            lines.append("")
 
                 lines.append("")
         

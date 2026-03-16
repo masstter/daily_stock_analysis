@@ -466,6 +466,18 @@ def run_full_analysis(
         except Exception as e:
             logger.warning(f"自动回测失败（已忽略）: {e}")
 
+        # 执行一次历史文件清理
+        try:
+            from src.report_file_manager import ReportFileManager
+
+            report_manager = ReportFileManager()
+            deleted_count = report_manager.cleanup_history_files(
+                retain_days=config.report_retention_days
+            )
+            logger.info("reports 历史文件清理完成，删除 %s 个文件", deleted_count)
+        except Exception as e:
+            logger.warning("报告历史文件清理异常（已忽略）: %s", e)
+
     except Exception as e:
         logger.exception(f"分析流程执行失败: {e}")
 
