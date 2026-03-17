@@ -20,7 +20,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
 
 from src.config import get_config
-from src.analyzer import AnalysisResult
+from src.analyzer import AnalysisResult, DimensionScores
 from src.enums import ReportType
 from bot.models import BotMessage
 from src.utils.data_processing import normalize_model_used
@@ -218,6 +218,56 @@ class NotificationService(
             if model:
                 models.append(model)
         return list(dict.fromkeys(models))
+
+    def _get_dimension_scores(self, result: AnalysisResult) -> Optional[DimensionScores]:
+        """Normalize/repair dimension_scores so report rendering can always read it."""
+        raw_scores = getattr(result, 'dimension_scores', None)
+
+        if raw_scores and hasattr(raw_scores, 'technical_score') and hasattr(raw_scores, 'overall_score'):
+            return raw_scores
+
+        if isinstance(raw_scores, dict) and raw_scores:
+            try:
+                repaired = DimensionScores(
+                    technical_score=int(raw_scores.get('technical_score', -1)),
+                    ma_score=int(raw_scores.get('ma_score', -1)),
+                    volume_score=int(raw_scores.get('volume_score', -1)),
+                    pattern_score=int(raw_scores.get('pattern_score', -1)),
+                    fundamental_score=int(raw_scores.get('fundamental_score', -1)),
+                    valuation_score=int(raw_scores.get('valuation_score', -1)),
+                    growth_score=int(raw_scores.get('growth_score', -1)),
+                    sentiment_score=int(raw_scores.get('sentiment_score', -1)),
+                    news_score=int(raw_scores.get('news_score', -1)),
+                    catalyst_score=int(raw_scores.get('catalyst_score', -1)),
+                    overall_score=int(raw_scores.get('overall_score', -1)),
+                )
+                result.dimension_scores = repaired
+                return repaired
+            except Exception as e:
+                logger.debug("dimension_scores 字典修复失败，尝试重新计算: %s", e)
+
+        try:
+            from src.dimension_scorer import DimensionScorer
+
+            computed = DimensionScorer().calculate_scores(result)
+            repaired = DimensionScores(
+                technical_score=int(computed.get('technical_score', -1)),
+                ma_score=int(computed.get('ma_score', -1)),
+                volume_score=int(computed.get('volume_score', -1)),
+                pattern_score=int(computed.get('pattern_score', -1)),
+                fundamental_score=int(computed.get('fundamental_score', -1)),
+                valuation_score=int(computed.get('valuation_score', -1)),
+                growth_score=int(computed.get('growth_score', -1)),
+                sentiment_score=int(computed.get('sentiment_score', -1)),
+                news_score=int(computed.get('news_score', -1)),
+                catalyst_score=int(computed.get('catalyst_score', -1)),
+                overall_score=int(computed.get('overall_score', -1)),
+            )
+            result.dimension_scores = repaired
+            return repaired
+        except Exception as e:
+            logger.debug("dimension_scores 重新计算失败: %s", e)
+            return None
 
     def _detect_all_channels(self) -> List[NotificationChannel]:
         """
@@ -561,8 +611,8 @@ class NotificationService(
                 ])
 
                 # 添加维度评分显示
-                if hasattr(result, 'dimension_scores') and result.dimension_scores:
-                    dim_scores = result.dimension_scores
+                dim_scores = self._get_dimension_scores(result)
+                if dim_scores:
                     report_lines.extend([
                         "#### 📊 多维度评分",
                         "",
@@ -849,8 +899,8 @@ class NotificationService(
                 ])
                 
                 # 添加维度评分显示
-                if hasattr(result, 'dimension_scores') and result.dimension_scores:
-                    dim_scores = result.dimension_scores
+                dim_scores = self._get_dimension_scores(result)
+                if dim_scores:
                     report_lines.extend([
                         "### 📊 多维度评分",
                         "",
@@ -1137,10 +1187,10 @@ class NotificationService(
                     lines.append("")
 
                 # 添加维度评分
-                if hasattr(result, 'dimension_scores') and result.dimension_scores:
-                    dim_scores = result.dimension_scores
+                dim_scores = self._get_dimension_scores(result)
+                if dim_scores:
                     scores_text = (
-                        f"🏢 **评分:** 技术{dim_scores.technical_score} | "
+                        f"🏢 **多维度评分:** 技术{dim_scores.technical_score} | "
                         f"基本{dim_scores.fundamental_score} | "
                         f"消息{dim_scores.sentiment_score} | "
                         f"综合{dim_scores.overall_score}"
@@ -1381,8 +1431,8 @@ class NotificationService(
         ]
 
         # 添加维度评分显示
-        if hasattr(result, 'dimension_scores') and result.dimension_scores:
-            dim_scores = result.dimension_scores
+        dim_scores = self._get_dimension_scores(result)
+        if dim_scores:
             lines.extend([
                 "### 📊 多维度评分",
                 "",

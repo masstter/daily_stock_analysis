@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 
-pid=$(ps aux | grep stock_analysis | grep -v grep | grep -v '.sh' |  head -1 | awk -F ' ' '{print $2}')
+pid=$(ps aux | grep stock_analysis_service | grep -v grep | grep -v '.sh' |  head -1 | awk -F ' ' '{print $2}')
 
 if [ "$pid" != "" ]
 then
