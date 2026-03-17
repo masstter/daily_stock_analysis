@@ -23,6 +23,11 @@ MIN_MAX_BYTES = 40
 _SPECIAL_CHAR_RANGE = (0x10000, 0xFFFFF)
 _SPECIAL_CHAR_REGEX = re.compile(r'[\U00010000-\U000FFFFF]')
 
+# wkhtmltoimage (QtWebKit) on CentOS often needs explicit emoji-only font fallback.
+_EMOJI_REGEX = re.compile(
+    r'([\U0001F300-\U0001FAFF\u2600-\u27BF\u24C2-\U0001F251])'
+)
+
 
 def _page_marker(i: int, total: int) -> str:
     return f"{PAGE_MARKER_PREFIX} {i+1}/{total}"
@@ -113,15 +118,26 @@ def markdown_to_html_document(markdown_text: str) -> str:
         extras=["tables", "fenced-code-blocks", "break-on-newline", "cuddled-lists"],
     )
 
+    html_content = _EMOJI_REGEX.sub(r'<span class="emoji-fallback">\1</span>', html_content)
+
     css_style = """
             body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+                font-family:
+                    "Noto Color Emoji", "Noto Emoji", "Symbola", "Apple Color Emoji", "Segoe UI Emoji",
+                    "Noto Sans CJK SC", "Noto Sans SC",
+                    "WenQuanYi Zen Hei", "WenQuanYi Micro Hei",
+                    "Source Han Sans CN", "Source Han Sans SC",
+                    "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB",
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
                 line-height: 1.5;
                 color: #24292e;
                 font-size: 14px;
                 padding: 15px;
                 max-width: 900px;
                 margin: 0 auto;
+            }
+            .emoji-fallback {
+                font-family: "Symbola", "Noto Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif;
             }
             h1 {
                 font-size: 20px;

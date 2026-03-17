@@ -36,6 +36,7 @@ class WechatSender:
         """
         self._wechat_url = config.wechat_webhook_url
         self._wechat_file_url = config.wechat_webhook_file_url
+        self._not_allow_send_msg = config.not_allow_send_msg
         self._wechat_max_bytes = getattr(config, 'wechat_max_bytes', 4000)
         self._wechat_msg_type = getattr(config, 'wechat_msg_type', 'markdown')
         self._webhook_verify_ssl = getattr(config, 'webhook_verify_ssl', True)
@@ -76,7 +77,11 @@ class WechatSender:
         if not self._wechat_url:
             logger.warning("企业微信 Webhook 未配置，跳过推送")
             return False
-        
+
+        if self._not_allow_send_msg:
+            logger.info("配置禁止发送消息，跳过推送")
+            return False
+
         # 根据消息类型动态限制上限，避免 text 类型超过企业微信 2048 字节限制
         if self._wechat_msg_type == 'text':
             max_bytes = min(self._wechat_max_bytes, 2000)  # 预留一定字节给系统/分页标记
@@ -113,7 +118,7 @@ class WechatSender:
                 "image": {"base64": b64, "md5": md5_hash},
             }
             response = requests.post(
-                self._wechat_url, json=payload, timeout=30, verify=self._webhook_verify_ssl
+                self._wechat_url, json=payload, timeout=60, verify=self._webhook_verify_ssl
             )
             if response.status_code == 200:
                 result = response.json()

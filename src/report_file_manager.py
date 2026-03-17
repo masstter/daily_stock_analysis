@@ -61,7 +61,7 @@ class ReportFileManager:
         # 遍历所有支持的前缀
         for prefix in self.REPORT_PREFIXES:
             # 构造文件名模式：prefix_yyyymmdd.*
-            pattern = f"{prefix}_{date_suffix}.*"
+            pattern = f"{prefix}_{date_suffix}.md"
             matches = list(self.report_dir.glob(pattern))
             found_files.extend(matches)
 

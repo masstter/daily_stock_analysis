@@ -923,6 +923,7 @@ class NotificationService(
                     # 舆情情绪总结
                     if intel.get('sentiment_summary'):
                         report_lines.append(f"**💭 舆情情绪**: {intel['sentiment_summary']}")
+                        report_lines.append("")
                     # 业绩预期
                     if intel.get('earnings_outlook'):
                         report_lines.append(f"**📊 业绩预期**: {intel['earnings_outlook']}")

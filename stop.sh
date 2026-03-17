@@ -6,7 +6,7 @@ pid=$(ps aux | grep stock_analysis_service | grep -v grep | grep -v '.sh' |  hea
 if [ "$pid" != "" ]
 then
   echo "killing stock_analysis $pid..."
-  ps aux | grep stock_analysis | grep -v grep | awk -F ' ' '{print $2}' | xargs kill -9
+  kill -9 "$pid"
 else
   echo 'stock_analysis服务已停止.'
 fi
