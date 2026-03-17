@@ -40,24 +40,38 @@ def _markdown_to_image_m2f(markdown_text: str) -> Optional[bytes]:
     try:
         temp_dir = tempfile.mkdtemp()
         md_path = os.path.join(temp_dir, "report.md")
+        png_path = os.path.join(temp_dir, "report.png")
+        
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(markdown_text)
 
         # Windows: npm installs m2f as m2f.cmd; subprocess needs shell=True to run .cmd scripts.
         # On other platforms, use the resolved path directly without shell.
         use_shell = sys.platform == "win32"
+        
+        # m2f command: m2f <input.md> <output.png>
+        # Specify full output file path directly (compatible with all platforms)
         result = subprocess.run(
-            [m2f_exec, md_path, "png", f"outputDirectory={temp_dir}"],
+            [m2f_exec, md_path, png_path],
             capture_output=True,
             timeout=60,
             check=False,
             shell=use_shell,
         )
-        png_path = os.path.join(temp_dir, "report.png")
-        if result.returncode != 0 or not os.path.isfile(png_path):
+        
+        if result.returncode != 0:
             logger.warning(
                 "m2f conversion failed: returncode=%s, stderr=%s",
                 result.returncode,
+                (result.stderr or b"").decode("utf-8", errors="replace")[:200],
+            )
+            return None
+        
+        if not os.path.isfile(png_path):
+            logger.warning(
+                "m2f did not produce output file at %s. stdout=%s, stderr=%s",
+                png_path,
+                (result.stdout or b"").decode("utf-8", errors="replace")[:200],
                 (result.stderr or b"").decode("utf-8", errors="replace")[:200],
             )
             return None
