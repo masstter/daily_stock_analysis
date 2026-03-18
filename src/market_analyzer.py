@@ -440,6 +440,7 @@ class MarketAnalyzer:
                 emoji = ["🔻", "📉", "⬇️", "❌", "💔"][i-1]
                 bot_items.append(f"{emoji} **{s['name']}** {s['change_pct']:+.2f}%")
             bot = " | ".join(bot_items)
+            lines.append("")
             lines.append(f"> 📍 **领跌板块**: {bot}")
         return "\n".join(lines)
 
